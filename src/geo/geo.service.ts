@@ -41,6 +41,11 @@ export class GeoService {
     query?: string,
     limit?: number,
   ) {
+    // Normalizar parámetros UNA VEZ para mejor rendimiento
+    const normalizedCountryIso = countryIso?.toUpperCase().trim();
+    const normalizedQuery = query?.toLowerCase().trim();
+    const finalLimit = limit ? Math.min(Math.max(limit, 1), 100) : 50;
+
     const qb = this.dataSource
       .createQueryBuilder()
       .select('m.id', 'id')
@@ -51,26 +56,19 @@ export class GeoService {
       .innerJoin(Department, 'd', 'd.id = m.departmentId')
       .innerJoin(Country, 'c', 'c.id = d.countryId');
 
-    if (countryIso) {
-      qb.where('LOWER(c.iso2) = LOWER(:iso)', { iso: countryIso });
+    // Usar índice en iso2 (case-sensitive, ya normalizado)
+    if (normalizedCountryIso) {
+      qb.where('c.iso2 = :iso', { iso: normalizedCountryIso });
     }
 
-    if (query) {
-      qb.andWhere(
-        `
-    (
-      unaccent(LOWER(m.name)) LIKE unaccent(LOWER(:q))
-      OR
-      unaccent(LOWER(d.name)) LIKE unaccent(LOWER(:q))
-    )
-    `,
-        { q: `%${query.trim()}%` },
-      );
+    // Usar ILIKE que puede usar índices pg_trgm (más rápido que LOWER + LIKE)
+    if (normalizedQuery) {
+      qb.andWhere('(m.name ILIKE :q OR d.name ILIKE :q)', {
+        q: `%${normalizedQuery}%`,
+      });
     }
 
-    if (limit) {
-      qb.orderBy('m.name', 'ASC').limit(Math.min(Math.max(limit, 1), 50));
-    }
+    qb.orderBy('m.name', 'ASC').limit(finalLimit);
 
     const rows = await qb.getRawMany<{
       id: number;
