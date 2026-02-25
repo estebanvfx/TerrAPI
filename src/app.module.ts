@@ -20,6 +20,14 @@ import { GeoModule } from './geo/geo.module';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         //NOTE: la db ya existe, no queremos que se sincronice ni que se borre nada
         synchronize: false, // Set to true only in development
+
+        extra: {
+          max: 20, // máximo de conexiones
+          connectionTimeoutMillis: 5000,
+          idleTimeoutMillis: 30000,
+        },
+
+        maxQueryExecutionTime: 1000,
       }),
     }),
     GeoModule,
