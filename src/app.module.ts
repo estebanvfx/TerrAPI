@@ -6,7 +6,7 @@ import { GeoModule } from './geo/geo.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: '.env.development.local',
+      envFilePath: '.env.development.local, .env.development, .env',
       isGlobal: true,
     }),
     TypeOrmModule.forRootAsync({
