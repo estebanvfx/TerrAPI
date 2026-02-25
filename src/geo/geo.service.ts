@@ -43,7 +43,7 @@ export class GeoService {
   ) {
     // Normalizar parámetros UNA VEZ para mejor rendimiento
     const normalizedCountryIso = countryIso?.toUpperCase().trim();
-    const normalizedQuery = query?.toLowerCase().trim();
+    const normalizedQuery = query?.trim();
     const finalLimit = limit ? Math.min(Math.max(limit, 1), 100) : 50;
 
     const qb = this.dataSource
@@ -61,11 +61,14 @@ export class GeoService {
       qb.where('c.iso2 = :iso', { iso: normalizedCountryIso });
     }
 
-    // Usar ILIKE que puede usar índices pg_trgm (más rápido que LOWER + LIKE)
+    // Búsqueda insensible a mayúsculas/minúsculas y tildes.
     if (normalizedQuery) {
-      qb.andWhere('(m.name ILIKE :q OR d.name ILIKE :q)', {
-        q: `%${normalizedQuery}%`,
-      });
+      qb.andWhere(
+        '(unaccent(LOWER(m.name)) LIKE unaccent(LOWER(:q)) OR unaccent(LOWER(d.name)) LIKE unaccent(LOWER(:q)))',
+        {
+          q: `%${normalizedQuery}%`,
+        },
+      );
     }
 
     qb.orderBy('m.name', 'ASC').limit(finalLimit);
